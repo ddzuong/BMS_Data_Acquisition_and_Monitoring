@@ -1,4 +1,5 @@
 /* USER CODE BEGIN Header */
+
 /**
   ******************************************************************************
   * @file           : main.c
@@ -44,8 +45,27 @@ typedef enum{
 	ntc_sensor1,
 	ntc_sensor2,
 	
-	Buffer_cnt
+	Buffer1_cnt
 }Data_Type;
+
+typedef enum{
+	Cell_Voltage_1_Series,
+	Cell_Voltage_2_Series,
+	Cell_Voltage_3_Series,
+	Cell_Voltage_4_Series,
+	Cell_Voltage_5_Series,
+	Cell_Voltage_6_Series,
+	Cell_Voltage_7_Series,
+	Cell_Voltage_8_Series,
+	Cell_Voltage_9_Series,
+	Cell_Voltage_10_Series,
+	Cell_Voltage_11_Series,
+	Cell_Voltage_12_Series,
+	Cell_Voltage_13_Series,
+	
+	Buffer2_cnt
+}Data_Voltage_Series;
+
 
 //typedef struct{
 //	uint32_t ID;
@@ -60,7 +80,10 @@ typedef enum{
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define Num_byte_Req_frame	7
-#define Num_byte_RxFrame		34
+#define Num_byte_RxFrame		34  //Rx_frame of cmd 0x03
+#define Num_byte_RxFrame4		33	//Rx_frame of cmd 0x04
+#define cmd_03_frame				3
+#define cmd_04_frame				4
 #define CAN_TX_Buffer				34
 /* USER CODE END PD */
 
@@ -79,12 +102,20 @@ CAN_TxHeaderTypeDef tx_header1;
 CAN_TxHeaderTypeDef tx_header2;
 CAN_TxHeaderTypeDef tx_header3;
 CAN_TxHeaderTypeDef tx_header4;
-//-------UART-----
+CAN_TxHeaderTypeDef tx_header5;
+CAN_TxHeaderTypeDef tx_header6;
+CAN_TxHeaderTypeDef tx_header7;
+CAN_TxHeaderTypeDef tx_header8;
+
+
+//-------UART-------
 uint8_t request_frame_03[Num_byte_Req_frame] = {0xDD, 0xA5, 0x03, 0x00, 0xFF, 0xFD, 0x77};
 uint8_t request_frame_04[Num_byte_Req_frame] = {0xDD, 0xA5, 0x04, 0x00, 0xFF, 0xFC, 0x77};
-uint8_t Rx_buffer[Num_byte_RxFrame] = {};
-
-static float data_buffer[Buffer_cnt];
+uint8_t Rx_buffer[Num_byte_RxFrame] = {}; //Buffer includes raw frame 03
+uint8_t Rx_buffer04[Num_byte_RxFrame4] = {};//Buffer includes raw frame 04
+	
+static float data_buffer[Buffer1_cnt]; //Real data of frame 03
+static float data_buffer2[Buffer2_cnt]; //Real data of frame 04
 
 //Cmd: 0x03 -----Data content interpretation-----
 volatile uint8_t header;
@@ -107,6 +138,8 @@ volatile float raw_batt_series;
 volatile float raw_ntc_num;
 volatile float raw_ntc_sensor1;
 volatile float raw_ntc_sensor2;
+volatile float raw_check_sum;
+volatile float raw_end_frame;
 
 //Debug data frame
 volatile float d_total_voltage = 0.0f;
@@ -132,15 +165,65 @@ volatile uint16_t year = 0;
 volatile float temp_sensor1 = 0.0f;
 volatile float temp_sensor2 = 0.0f;
 
+volatile uint16_t check_sum = 0;
+volatile uint16_t end_frame = 0;
 volatile HAL_StatusTypeDef can_tx_status;
 volatile uint32_t can_tx_pending; //if pending = 1 mean frame does not move on mailbox, else mean frame moved on mailbox
 volatile uint32_t can_free_mailbox; //number of free mailbox
 
+//Cmd: 0x04 -----Data content interpretation-----
+volatile uint8_t header04;
+volatile uint8_t command04;
+volatile uint8_t status04;
+volatile uint8_t data_len04;
+volatile float raw_cell_voltage1_series;
+volatile float raw_cell_voltage2_series;
+volatile float raw_cell_voltage3_series;
+volatile float raw_cell_voltage4_series;
+volatile float raw_cell_voltage5_series;
+volatile float raw_cell_voltage6_series;
+volatile float raw_cell_voltage7_series;
+volatile float raw_cell_voltage8_series;
+volatile float raw_cell_voltage9_series;
+volatile float raw_cell_voltage10_series;
+volatile float raw_cell_voltage11_series;
+volatile float raw_cell_voltage12_series;
+volatile float raw_cell_voltage13_series;
+volatile float raw_check_sum_04;
+
+//-----Debug Frame 04-----
+volatile float d_cell_voltage1 = 0.00f;
+volatile float d_cell_voltage2 = 0.00f;
+volatile float d_cell_voltage3 = 0.00f;
+volatile float d_cell_voltage4 = 0.00f;
+volatile float d_cell_voltage5 = 0.00f;
+volatile float d_cell_voltage6 = 0.00f;
+volatile float d_cell_voltage7 = 0.00f;
+volatile float d_cell_voltage8 = 0.00f;
+volatile float d_cell_voltage9 = 0.00f;
+volatile float d_cell_voltage10 = 0.00f;
+volatile float d_cell_voltage11 = 0.00f;
+volatile float d_cell_voltage12 = 0.00f;
+volatile float d_cell_voltage13 = 0.00f;
+volatile uint16_t check_sum04  = 0;
+
+static uint8_t command_turn = cmd_03_frame;
+volatile uint8_t uart_ready;
+
 //-----CAN-----
+
+//Transmit data frame 03
 uint8_t tx_data1[8];
 uint8_t tx_data2[8];
 uint8_t tx_data3[8];
 uint8_t tx_data4[3];
+
+//Transmit data frame 04
+uint8_t tx_data5[8];
+uint8_t tx_data6[8];
+uint8_t tx_data7[8];
+uint8_t tx_data8[2];
+
 uint32_t tx_mailbox;
 /* USER CODE END PV */
 
@@ -157,10 +240,10 @@ static void MX_CAN_Init(void);
 /* USER CODE BEGIN 0 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	//Doing sth
-	HAL_UART_Receive_IT(&huart1, Rx_buffer, sizeof(Rx_buffer));
+	uart_ready = 1;
 }
 
-void UART_Raw_frame(){
+void UART_Raw_frame_03(){
 	header = Rx_buffer[0];
 	command = Rx_buffer[1];
 	status = Rx_buffer[2];
@@ -181,16 +264,66 @@ void UART_Raw_frame(){
 	raw_ntc_num	= (float)(Rx_buffer[26]);
 	raw_ntc_sensor1 = (float)(((Rx_buffer[27]) << 8) | ((Rx_buffer[28])));
 	raw_ntc_sensor2 = (float)(((Rx_buffer[29]) << 8) | ((Rx_buffer[30])));
+	raw_check_sum = (float)(((Rx_buffer[31]) << 8) | ((Rx_buffer[32])));
+	raw_end_frame = (float)(Rx_buffer[33]);
 }
+
+void UART_Raw_frame_04(){
+	header04 = (float)Rx_buffer04[0];
+	command04 = (float)Rx_buffer04[1];
+	status04 = (float)Rx_buffer04[2];
+	data_len04 = (float)Rx_buffer04[3];
+	raw_cell_voltage1_series = (float)((Rx_buffer04[4] << 8) | (Rx_buffer04[5]));
+	raw_cell_voltage2_series = (float)(Rx_buffer04[6] << 8 | Rx_buffer04[7]);
+	raw_cell_voltage3_series = (float)(Rx_buffer04[8] << 8 | Rx_buffer04[9]);
+	raw_cell_voltage4_series = (float)(Rx_buffer04[10] << 8 | Rx_buffer04[11]);
+	raw_cell_voltage5_series = (float)(Rx_buffer04[12] << 8 | Rx_buffer04[13]);
+	raw_cell_voltage6_series = (float)(Rx_buffer04[14] << 8 | Rx_buffer04[15]);
+	raw_cell_voltage7_series = (float)(Rx_buffer04[16] << 8 | Rx_buffer04[17]);
+	raw_cell_voltage8_series = (float)(Rx_buffer04[18] << 8 | Rx_buffer04[19]);
+	raw_cell_voltage9_series = (float)(Rx_buffer04[20] << 8 | Rx_buffer04[21]);
+	raw_cell_voltage10_series = (float)(Rx_buffer04[22] << 8 | Rx_buffer04[23]);
+	raw_cell_voltage11_series = (float)(Rx_buffer04[24] << 8 | Rx_buffer04[25]);
+	raw_cell_voltage12_series = (float)(Rx_buffer04[26] << 8 | Rx_buffer04[27]);
+	raw_cell_voltage13_series = (float)(Rx_buffer04[28] << 8 | Rx_buffer04[29]);
+	raw_check_sum_04 = (float)((Rx_buffer04[30] << 8) | (Rx_buffer04[31]));
+}
+
+void checksum_frame_cmd_03(){
+	uint16_t sum = 0;
+	//Check sum = Status + data_len + data[](byte)
+	sum += Rx_buffer[2];
+	sum += Rx_buffer[3];
+	for(uint8_t i = 0; i < data_len; i++){
+		sum += Rx_buffer[4 + i];
+	}
+	check_sum = 0x0000 - sum;
+}
+
+void checksum_frame_cmd_04(){
+	uint16_t sum04 = 0;
+	
+	sum04 += Rx_buffer04[2];
+	sum04 += Rx_buffer04[3];
+	for(uint8_t i = 0; i < data_len04; i++){
+		sum04 += Rx_buffer04[4 + i];
+	}
+	check_sum04 = 0x0000 - sum04;
+}
+
 void UART_Process_Frame(){
-	//Decode raw data
-	UART_Raw_frame();
+	//Decode raw data command 03
+	UART_Raw_frame_03();
+	UART_Raw_frame_04();
 	if(Rx_buffer[2] == 0x80){
 		//Error frame
 		return;
 	}
 	else if(Rx_buffer[2] == 0x00){
-		if((Rx_buffer[0] == 0xDD) && (Rx_buffer[1] == 0x03)){
+		
+		checksum_frame_cmd_03();
+		checksum_frame_cmd_04();
+		if((Rx_buffer[1] == 0x03) && (check_sum == raw_check_sum)){
 			data_buffer[total_voltage] = (float)raw_total_voltage/100.00f;
 			d_total_voltage = (float)data_buffer[total_voltage]; //Debug
 			
@@ -246,18 +379,64 @@ void UART_Process_Frame(){
 			temp_sensor2 = (data_buffer[ntc_sensor2] - 2731)/10.0f;
 		}
 	}
+	
+	//Decode Frame 04
+	if(Rx_buffer04[2] == 0x80){
+		return;
+	}
+	else if(Rx_buffer04[2] == 0x00){
+		if((Rx_buffer04[1] == 0x04) && (check_sum04 == raw_check_sum_04)){
+			data_buffer2[Cell_Voltage_1_Series] = raw_cell_voltage1_series / 1000.0f;
+			d_cell_voltage1 = (float)data_buffer2[Cell_Voltage_1_Series];
+			
+			data_buffer2[Cell_Voltage_2_Series] = raw_cell_voltage2_series / 1000.0f;
+			d_cell_voltage2 = (float)data_buffer2[Cell_Voltage_2_Series];
+			
+			data_buffer2[Cell_Voltage_3_Series] = raw_cell_voltage3_series / 1000.0f;
+			d_cell_voltage3 = (float)data_buffer2[Cell_Voltage_3_Series];
+			
+			data_buffer2[Cell_Voltage_4_Series] = raw_cell_voltage4_series / 1000.0f;
+			d_cell_voltage4 = (float)data_buffer2[Cell_Voltage_4_Series];
+			
+			data_buffer2[Cell_Voltage_5_Series] = raw_cell_voltage5_series / 1000.0f;
+			d_cell_voltage5 = (float)data_buffer2[Cell_Voltage_5_Series];
+			
+			data_buffer2[Cell_Voltage_6_Series] = raw_cell_voltage6_series / 1000.0f;
+			d_cell_voltage6 = (float)data_buffer2[Cell_Voltage_6_Series];
+			
+			data_buffer2[Cell_Voltage_7_Series] = raw_cell_voltage7_series / 1000.0f;
+			d_cell_voltage7 = (float)data_buffer2[Cell_Voltage_7_Series];
+			
+			data_buffer2[Cell_Voltage_8_Series] = raw_cell_voltage8_series / 1000.0f;
+			d_cell_voltage8 = (float)data_buffer2[Cell_Voltage_8_Series];
+			
+			data_buffer2[Cell_Voltage_9_Series] = raw_cell_voltage9_series / 1000.0f;
+			d_cell_voltage9 = (float)data_buffer2[Cell_Voltage_9_Series];
+			
+			data_buffer2[Cell_Voltage_10_Series] = raw_cell_voltage10_series / 1000.0f;
+			d_cell_voltage10 = (float)data_buffer2[Cell_Voltage_10_Series];
+			
+			data_buffer2[Cell_Voltage_11_Series] = raw_cell_voltage11_series / 1000.0f;
+			d_cell_voltage11 = (float)data_buffer2[Cell_Voltage_11_Series];
+			
+			data_buffer2[Cell_Voltage_12_Series] = raw_cell_voltage12_series / 1000.0f;
+			d_cell_voltage12 = (float)data_buffer2[Cell_Voltage_12_Series];
+			
+			data_buffer2[Cell_Voltage_13_Series] = raw_cell_voltage13_series / 1000.0f;
+			d_cell_voltage13 = (float)data_buffer2[Cell_Voltage_13_Series];
+		}
+	}
 }
 
 void CAN_Process(){
 	
-	//Encode frame 
+	//Encode frame 03
 	
 	tx_header1.StdId = 0x100;
 	tx_header1.IDE = CAN_ID_STD;
 	tx_header1.RTR = CAN_RTR_DATA;
 	tx_header1.DLC = 8;
 	tx_header1.TransmitGlobalTime = DISABLE;
-	
 	tx_data1[0] = ((uint16_t)raw_total_voltage >> 8) & 0xFF;
 	tx_data1[1] = (uint8_t)raw_total_voltage & 0xFF;
 	tx_data1[2] = ((uint16_t)raw_current >> 8) & 0xFF;
@@ -274,7 +453,6 @@ void CAN_Process(){
 	tx_header2.RTR = CAN_RTR_DATA;
 	tx_header2.DLC = 8;
 	tx_header2.TransmitGlobalTime = DISABLE;
-		
 	tx_data2[0] = ((uint16_t)raw_cycle >> 8) & 0xFF;
 	tx_data2[1] = ((uint8_t)raw_cycle) & 0xFF;
 	tx_data2[2] = ((uint16_t)raw_prd_date >> 8) &0xFF;
@@ -291,7 +469,6 @@ void CAN_Process(){
 	tx_header3.RTR = CAN_RTR_DATA;
 	tx_header3.DLC = 8;
 	tx_header3.TransmitGlobalTime = DISABLE;
-		
 	tx_data3[0] = ((uint16_t)raw_protection_status >> 8) & 0xFF;
 	tx_data3[1] = (uint8_t)raw_protection_status & 0xFF;
 	tx_data3[2] = (uint8_t)raw_sw_version & 0xFF;
@@ -308,14 +485,70 @@ void CAN_Process(){
 	tx_header4.RTR = CAN_RTR_DATA;
 	tx_header4.DLC = 3;
 	tx_header4.TransmitGlobalTime = DISABLE;
-		
 	tx_data4[0] = (uint8_t)raw_ntc_sensor1 & 0xFF;
 	tx_data4[1] = ((uint16_t)raw_ntc_sensor2) & 0xFF;
 	tx_data4[2] = (uint8_t)raw_ntc_sensor2 & 0xFF;
+	
+	//Encode frame 04
+	tx_header5.StdId = 0x105;
+	tx_header5.ExtId = DISABLE;
+	tx_header5.IDE = CAN_ID_STD;
+	tx_header5.RTR = CAN_RTR_DATA;
+	tx_header5.DLC = 8;
+	tx_header5.TransmitGlobalTime = DISABLE;
+	tx_data5[0] = (uint16_t)raw_cell_voltage1_series >> 8 & 0xFF;
+	tx_data5[1] = (uint8_t)raw_cell_voltage1_series & 0xFF;
+	tx_data5[2] = (uint16_t)raw_cell_voltage2_series >> 8 & 0xFF;
+	tx_data5[3] = (uint8_t)raw_cell_voltage2_series & 0xFF;
+	tx_data5[4] = (uint16_t)raw_cell_voltage3_series >> 8 & 0xFF;
+	tx_data5[5] = (uint8_t)raw_cell_voltage3_series & 0xFF;
+	tx_data5[6] = (uint16_t)raw_cell_voltage4_series >> 8 & 0xFF;
+	tx_data5[7] = (uint8_t)raw_cell_voltage4_series & 0xFF;
+	
+	
+	tx_header6.StdId = 0x106;
+	tx_header6.ExtId = DISABLE;
+	tx_header6.IDE = CAN_ID_STD;
+	tx_header6.RTR = CAN_RTR_DATA;
+	tx_header6.DLC = 8;
+	tx_header6.TransmitGlobalTime = DISABLE;
+	tx_data6[0] = (uint16_t)raw_cell_voltage5_series >> 8 & 0xFF;
+	tx_data6[1] = (uint8_t)raw_cell_voltage5_series & 0xFF;
+	tx_data6[2] = (uint16_t)raw_cell_voltage6_series >> 8 & 0xFF;
+	tx_data6[3] = (uint8_t)raw_cell_voltage6_series & 0xFF;
+	tx_data6[4] = (uint16_t)raw_cell_voltage7_series >> 8 & 0xFF;
+	tx_data6[5] = (uint8_t)raw_cell_voltage7_series & 0xFF;
+	tx_data6[6] = (uint16_t)raw_cell_voltage8_series >> 8 & 0xFF;
+	tx_data6[7] = (uint8_t)raw_cell_voltage8_series & 0xFF;
+	
+	
+	tx_header7.StdId = 0x107;
+	tx_header7.ExtId = DISABLE;
+	tx_header7.IDE = CAN_ID_STD;
+	tx_header7.RTR = CAN_RTR_DATA;
+	tx_header7.DLC = 8;
+	tx_header7.TransmitGlobalTime = DISABLE;
+	tx_data7[0] = (uint16_t)raw_cell_voltage9_series >> 8 & 0xFF;
+	tx_data7[1] = (uint8_t)raw_cell_voltage9_series & 0xFF;
+	tx_data7[2] = (uint16_t)raw_cell_voltage10_series >> 8 & 0xFF;
+	tx_data7[3] = (uint8_t)raw_cell_voltage10_series & 0xFF;
+	tx_data7[4] = (uint16_t)raw_cell_voltage11_series >> 8 & 0xFF;
+	tx_data7[5] = (uint8_t)raw_cell_voltage11_series & 0xFF;
+	tx_data7[6] = (uint16_t)raw_cell_voltage12_series >> 8 & 0xFF;
+	tx_data7[7] = (uint8_t)raw_cell_voltage12_series & 0xFF;
+	
+	
+	tx_header8.StdId = 0x108;
+	tx_header8.ExtId = DISABLE;
+	tx_header8.IDE = CAN_ID_STD;
+	tx_header8.RTR = CAN_RTR_DATA;
+	tx_header8.DLC = 2;
+	tx_header8.TransmitGlobalTime = DISABLE;
+	tx_data8[0] = (uint16_t)raw_cell_voltage13_series >> 8 & 0xFF;
+	tx_data8[1] = (uint8_t)raw_cell_voltage13_series & 0xFF;
 }
 
 void CAN_Transmit(){
-	
 	if(HAL_CAN_GetTxMailboxesFreeLevel(&hcan) > 0){
 		HAL_CAN_AddTxMessage(&hcan, &tx_header1, tx_data1, &tx_mailbox);
 		HAL_CAN_AddTxMessage(&hcan, &tx_header2, tx_data2, &tx_mailbox);
@@ -324,6 +557,10 @@ void CAN_Transmit(){
 		if(HAL_CAN_GetTxMailboxesFreeLevel > 0){
 			HAL_Delay(1);//Wait to until appear empty mailbox
 			HAL_CAN_AddTxMessage(&hcan, &tx_header4, tx_data4, &tx_mailbox);
+			HAL_CAN_AddTxMessage(&hcan, &tx_header5, tx_data5, &tx_mailbox);
+			HAL_CAN_AddTxMessage(&hcan, &tx_header6, tx_data6, &tx_mailbox);
+			HAL_CAN_AddTxMessage(&hcan, &tx_header7, tx_data7, &tx_mailbox);
+			HAL_CAN_AddTxMessage(&hcan, &tx_header8, tx_data8, &tx_mailbox);
 		}
 		//HAL_CAN_AddTxMessage(&hcan, &tx_header4, tx_data4, &tx_mailbox);
 		//can_tx_status = HAL_CAN_AddTxMessage(&hcan, &tx_header1, tx_data1, &tx_mailbox); //Debug
@@ -335,6 +572,7 @@ void CAN_Transmit(){
 //		}
 	}
 }
+
 /* USER CODE END 0 */
 
 /**
@@ -368,7 +606,9 @@ int main(void)
   MX_USART1_UART_Init();
   MX_CAN_Init();
   /* USER CODE BEGIN 2 */
-	HAL_UART_Receive_IT(&huart1, Rx_buffer, sizeof(Rx_buffer)); 
+	HAL_UART_Receive_IT(&huart1, Rx_buffer, sizeof(Rx_buffer));//Function of Receive Interrupt into Buffer03
+	HAL_UART_Transmit(&huart1, request_frame_03, sizeof(request_frame_03), 50);
+	//HAL_UART_Receive_IT(&huart1, Rx_buffer04, sizeof(Rx_buffer04));//Function of Receive Interrupt into Buffer04
 	HAL_CAN_Start(&hcan);
   /* USER CODE END 2 */
 
@@ -379,9 +619,17 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		for(uint8_t i = 0; i < Num_byte_Req_frame; i++){
-			HAL_UART_Transmit(&huart1, request_frame_03, sizeof(request_frame_03), 50);
-			
+		if(uart_ready == 1){
+			if(command_turn == cmd_03_frame){
+				command_turn = cmd_04_frame;
+				HAL_UART_Transmit(&huart1, request_frame_04, sizeof(request_frame_04), 50);
+				HAL_UART_Receive_IT(&huart1, Rx_buffer04, sizeof(Rx_buffer04));
+			}
+			else{
+				command_turn = cmd_03_frame;
+				HAL_UART_Transmit(&huart1, request_frame_03, sizeof(request_frame_03), 50);
+				HAL_UART_Receive_IT(&huart1, Rx_buffer, sizeof(Rx_buffer04));
+			}
 		}
 		
 		UART_Process_Frame();
