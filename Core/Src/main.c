@@ -486,7 +486,7 @@ void CAN_Process(){
 	tx_header4.DLC = 3;
 	tx_header4.TransmitGlobalTime = DISABLE;
 	tx_data4[0] = (uint8_t)raw_ntc_sensor1 & 0xFF;
-	tx_data4[1] = ((uint16_t)raw_ntc_sensor2) & 0xFF;
+	tx_data4[1] = ((uint16_t)raw_ntc_sensor2 >> 8) & 0xFF;
 	tx_data4[2] = (uint8_t)raw_ntc_sensor2 & 0xFF;
 	
 	//Encode frame 04
@@ -555,12 +555,16 @@ void CAN_Transmit(){
 		HAL_CAN_AddTxMessage(&hcan, &tx_header3, tx_data3, &tx_mailbox);
 		
 		if(HAL_CAN_GetTxMailboxesFreeLevel > 0){
-			HAL_Delay(1);//Wait to until appear empty mailbox
+			HAL_Delay(1);//Wait to until appear empty 3 of mailboxs 
 			HAL_CAN_AddTxMessage(&hcan, &tx_header4, tx_data4, &tx_mailbox);
 			HAL_CAN_AddTxMessage(&hcan, &tx_header5, tx_data5, &tx_mailbox);
 			HAL_CAN_AddTxMessage(&hcan, &tx_header6, tx_data6, &tx_mailbox);
+			
+			HAL_Delay(1);//Wait to until appear empty 3 of mailboxs
 			HAL_CAN_AddTxMessage(&hcan, &tx_header7, tx_data7, &tx_mailbox);
 			HAL_CAN_AddTxMessage(&hcan, &tx_header8, tx_data8, &tx_mailbox);
+			
+			HAL_Delay(1);//Wait to until appear empty 3 of mailboxs
 		}
 		//HAL_CAN_AddTxMessage(&hcan, &tx_header4, tx_data4, &tx_mailbox);
 		//can_tx_status = HAL_CAN_AddTxMessage(&hcan, &tx_header1, tx_data1, &tx_mailbox); //Debug
@@ -622,12 +626,12 @@ int main(void)
 		if(uart_ready == 1){
 			if(command_turn == cmd_03_frame){
 				command_turn = cmd_04_frame;
-				HAL_UART_Transmit(&huart1, request_frame_04, sizeof(request_frame_04), 50);
+				HAL_UART_Transmit(&huart1, request_frame_04, sizeof(request_frame_04), 10);
 				HAL_UART_Receive_IT(&huart1, Rx_buffer04, sizeof(Rx_buffer04));
 			}
 			else{
 				command_turn = cmd_03_frame;
-				HAL_UART_Transmit(&huart1, request_frame_03, sizeof(request_frame_03), 50);
+				HAL_UART_Transmit(&huart1, request_frame_03, sizeof(request_frame_03), 10);
 				HAL_UART_Receive_IT(&huart1, Rx_buffer, sizeof(Rx_buffer04));
 			}
 		}
