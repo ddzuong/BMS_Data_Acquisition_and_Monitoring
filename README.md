@@ -38,6 +38,7 @@ Sử dụng STM32F1 với ESP32với sơ đồ chân chi tiết:
 Giao thức CAN sử dụng Standard ID với kiểu frame là Dataframe
 
 | CAN ID    | DLC       | Data                                                                                                      |
+|-----------|-----------|-----------------------------------------------------------------------------------------------------------|
 | `0x100`   | 8         | Total Voltage, Current, Balance Capacity, Rate Capacity                                                   |
 | `0x101`   | 8         | Cycle, Production date, balance status, balance status high                                               |
 | `0x102`   | 8         | Protection status, SW version, RSOC, FET Ctrl sts, Battery series, NTC number, Temp sensor 1(High byte)   |
