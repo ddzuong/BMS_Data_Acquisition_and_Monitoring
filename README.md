@@ -10,8 +10,9 @@
 ## 2.Sơ đồ đấu nối phần cứng 
 
 Sử dụng STM32F1 với ESP32với sơ đồ chân chi tiết:
-|-------------------|----------------------|------------|-------------|
+
 | Module            | Chân trên module     | Chân STM32 | Chân ESP32  |
+|-------------------|----------------------|------------|-------------|
 | JBD BMS           | TX, RX               | PA10, PA9  |             |
 | CAN Transceiver   | CANTX, CAN RX        | PA12, PA13 | 4, 5        |
 
