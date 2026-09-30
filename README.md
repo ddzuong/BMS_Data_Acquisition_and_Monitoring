@@ -56,3 +56,8 @@ Giao thức CAN sử dụng Standard ID với kiểu frame là Dataframe
 
 - **CAN bus:** Các frame `0x100`–`0x102` và `0x104`–`0x108`
 ![CAN frame on bus](docs/images/CAN_FRAME.jpg)
+
+
+## Datasheet JBD BMS 
+
+- [Datasheet JBD BMS](docs/datasheet/datasheet_JBD_RS485.pdf)
