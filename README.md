@@ -14,7 +14,7 @@ Sử dụng STM32F1 với ESP32với sơ đồ chân chi tiết:
 | Module            | Chân trên module     | Chân STM32 | Chân ESP32  |
 |-------------------|----------------------|------------|-------------|
 | JBD BMS           | TX, RX               | PA10, PA9  |             |
-| CAN Transceiver   | CANTX, CAN RX        | PA12, PA13 | 4, 5        |
+| CAN Transceiver   | CANTX, CAN RX        | PA12, PA11 | 4, 5        |
 
 ## 3.Luồng hoạt động
 
@@ -30,8 +30,8 @@ Sử dụng STM32F1 với ESP32với sơ đồ chân chi tiết:
 
 | Command   | Thông tin                                                                     | Độ dài dữ liệu    |
 |-----------|-------------------------------------------------------------------------------|-------------------|
-| `0x03`    | Total Voltage, Current, balance capacity, balance status, RSOC, Temp senor,...| 34 byte           |
-| `0x04`    | Voltae of cell series                                                         | 33 byte           |
+| `0x03`    | Total Voltage, Current, balance capacity, balance status, RSOC, Temp senor,...| 27 byte           |
+| `0x04`    | Voltae of cell series                                                         | 26 byte           |
 
 ## 5. Định dạng dữ liệu CAN
 
