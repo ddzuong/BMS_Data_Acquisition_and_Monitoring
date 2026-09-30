@@ -51,7 +51,8 @@ Giao thức CAN sử dụng Standard ID với kiểu frame là Dataframe
 ## 6. Kết quả kiểm thử & debug
 
 - **UART/JBD BMS:** Frame phản hồi `0x03` và `0x04` được STM32F1 nhận và giải mã
-![Analyze UART frame](docs/images/Analyze_UART_FRAME.jpg)
+![Analyze UART frame `0x03`](docs/images/Analyze_UART_FRAME_03.jpg)
+![Analyze UART frame `0x04`](docs/images/Analyze_UART_FRAME_04.jpg)
 
 
 - **CAN bus:** Các frame `0x100`–`0x102` và `0x104`–`0x108`
