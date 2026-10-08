@@ -632,7 +632,7 @@ int main(void)
 			else{
 				command_turn = cmd_03_frame;
 				HAL_UART_Transmit(&huart1, request_frame_03, sizeof(request_frame_03), 10);
-				HAL_UART_Receive_IT(&huart1, Rx_buffer, sizeof(Rx_buffer04));
+				HAL_UART_Receive_IT(&huart1, Rx_buffer, sizeof(Rx_buffer));
 			}
 		}
 		
