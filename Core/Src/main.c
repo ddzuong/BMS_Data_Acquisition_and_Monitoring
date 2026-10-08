@@ -624,7 +624,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 		if(uart_ready == 1){
-			uart_ready = 0;
+			uart_ready = 0; 
 			if(command_turn == cmd_03_frame){
 				command_turn = cmd_04_frame;
 				HAL_UART_Transmit(&huart1, request_frame_04, sizeof(request_frame_04), 10);
