@@ -54,13 +54,19 @@ Giao thức CAN sử dụng Standard ID với kiểu frame là Dataframe
 ![Analyze UART frame `0x03`](docs/images/Analyze_UART_FRAME_03.jpg)
 ![Analyze UART frame `0x04`](docs/images/Analyze_UART_FRAME_04.jpg)
 
+<br>
+
 
 - **CAN bus:** Các frame `0x100`–`0x102` và `0x104`–`0x108`
 ![CAN frame on bus](docs/images/CAN_FRAME.jpg)
 
+<br>
+
 - **FireBase** Kết quả hiển thị BMS
 ![BMS](docs/images/Data_Basic_BMS.jpg)
 ![BMS](docs/images/Cell_Voltage_BMS.jpg)
+
+<br>
 
 ## Datasheet JBD BMS 
 
